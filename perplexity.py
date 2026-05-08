@@ -280,8 +280,10 @@ def detect(
         perturbed_scores > original_score
     )
 
+    outcome = "machine" if p > threshold else "human"
+
     return {
-        "ai_generated": p > threshold,
+        "outcome": outcome,
         "probability": float(p),
         "original_score": float(original_score),
         "perturbed_mean": float(

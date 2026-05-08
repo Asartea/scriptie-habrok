@@ -11,15 +11,16 @@ def load_jsonl(filename):
 
 
 def main():
-    data = load_jsonl("data.jsonl")
+    data = load_jsonl("solutions.jsonl")
 
     for item in data:
         code = item["code"]
         label = item["label"]
 
-        score = detect(code)
+        result = detect(code)
 
-        print(f"Label: {label}, Score: {score:.4f}")
+        print(f"Label: {label}")
+        print(f"Result: {result}")
 
 if __name__ == "__main__":
     main()
