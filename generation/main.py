@@ -11,10 +11,10 @@ from code_validation import validate_code, CodeValidationError
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 MODEL = "Qwen/Qwen2.5-Coder-14B-Instruct"
-tokenizer = AutoTokenizer.from_pretrained(MODEL)
+tokenizer = AutoTokenizer.from_pretrained(MODEL, padding_side="left")
 model = AutoModelForCausalLM.from_pretrained(
     MODEL,
-    torch_dtype=torch.float16,
+    dtype=torch.float16,
     device_map="auto",
 )
 
@@ -38,7 +38,6 @@ SYSTEM_PROMPT = (
 OUTPUT_PATH = Path("output.jsonl")
 
 
-VARIANTS_PER_PROBLEM = 4
 YEARS = [2021, 2024]
 DAYS = range(1, 25)
 
@@ -238,8 +237,7 @@ def build_jobs() -> list[Job]:
                 )
                 continue
 
-            for i in range(VARIANTS_PER_PROBLEM):
-                variant = VARIANTS[i % len(VARIANTS)]
+            for variant in VARIANTS:
                 prompt = build_prompt(problem, variant)
 
                 jobs.append(Job(year, day, variant, prompt))
