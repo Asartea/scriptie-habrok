@@ -2,10 +2,9 @@
 #SBATCH --job-name=qwen_aoc_generation
 #SBATCH --output=logs/%x_%j.out
 #SBATCH --error=logs/%x_%j.err
-#SBATCH --gres=gpu:2
-#SBATCH --time=02:00:00
+#SBATCH --time=00:05:00
 #SBATCH --mem=4G
-#SBATCH --partition=gpushort
+#SBATCH --partition=short
 
 echo "Starting job on $(hostname)"
 echo "Time: $(date)"
@@ -19,6 +18,8 @@ module load uv
 cd ~/scriptie/habrok
 
 source .env
-uv run generation/main.py
+pwd
+python3 -c "import torch; print('PyTorch version:', torch.__version__); print('CUDA available:', torch.cuda.is_available())"
+#uv run generation/main.py
 
 echo "Finished at $(date)"
