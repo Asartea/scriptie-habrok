@@ -105,6 +105,10 @@ def generate_batch(prompts: list[str], max_new_tokens: int = 1024) -> list[str]:
         for output, prompt_len in zip(outputs, prompt_lengths)
     ]
 
+    del outputs
+    del inputs
+    torch.cuda.empty_cache()
+
     return [strip_code_fences(code) for code in codes]
 
 
@@ -253,7 +257,7 @@ def main() -> None:
 
     print(f"Pending jobs: {len(jobs)}")
 
-    final = run_jobs(jobs, max_retries=3, batch_size=8)
+    final = run_jobs(jobs, max_retries=3, batch_size=4)
 
     write_all_samples(
         OUTPUT_PATH,
