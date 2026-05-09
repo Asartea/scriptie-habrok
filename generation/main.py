@@ -11,14 +11,11 @@ DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 MODEL = "Qwen/Qwen2.5-Coder-14B-Instruct"
 tokenizer = AutoTokenizer.from_pretrained(MODEL)
-model = (
-    AutoModelForCausalLM.from_pretrained(
-        MODEL,
-        dtype=torch.float16 if DEVICE.type == "cuda" else torch.float32,
-        device_map="auto",
-    )
-    .eval()
-)
+model = AutoModelForCausalLM.from_pretrained(
+    MODEL,
+    dtype=torch.float16 if DEVICE.type == "cuda" else torch.float32,
+    device_map="auto",
+).eval()
 
 
 VARIANTS = [
@@ -259,17 +256,17 @@ async def main() -> None:
 
     writer = create_jsonl_writer(OUTPUT_PATH)
 
-        workers = [
-            asyncio.create_task(worker(f"Worker-{i+1}", writer, job_queue))
-            for i in range(CONCURRENCY)
-        ]
+    workers = [
+        asyncio.create_task(worker(f"Worker-{i+1}", writer, job_queue))
+        for i in range(CONCURRENCY)
+    ]
 
-        await job_queue.join()
+    await job_queue.join()
 
-        for w in workers:
-            w.cancel()
+    for w in workers:
+        w.cancel()
 
-        await asyncio.gather(*workers, return_exceptions=True)
+    await asyncio.gather(*workers, return_exceptions=True)
 
 
 if __name__ == "__main__":
