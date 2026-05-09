@@ -84,15 +84,17 @@ def strip_code_fences(text: str) -> str:
 
 @torch.inference_mode()
 def generate_batch(prompts: list[str], max_new_tokens: int = 1024) -> list[str]:
-inputs = tokenizer(prompts, return_tensors="pt", padding=True, return_attention_mask=True)
-inputs = {k: v.to(model.device) for k, v in inputs.items()}
+    inputs = tokenizer(
+        prompts, return_tensors="pt", padding=True, return_attention_mask=True
+    )
+    inputs = {k: v.to(model.device) for k, v in inputs.items()}
 
-outputs = model.generate(
-    **inputs,
-    max_new_tokens=max_new_tokens,
-    do_sample=False,
-    pad_token_id=tokenizer.eos_token_id,
-)
+    outputs = model.generate(
+        **inputs,
+        max_new_tokens=max_new_tokens,
+        do_sample=False,
+        pad_token_id=tokenizer.eos_token_id,
+    )
 
     prompt_lengths = inputs["attention_mask"].sum(dim=1)
 
@@ -104,7 +106,9 @@ outputs = model.generate(
         for output, prompt_len in zip(outputs, prompt_lengths)
     ]
 
+
 return [strip_code_fences(code) for code in codes]
+
 
 def run_batch(jobs: list[Job], batch_size: int) -> list[tuple[Job, str]]:
     results: list[tuple[Job, str]] = []
