@@ -9,9 +9,7 @@ from transformers import (
     AutoModelForCausalLM,
 )
 
-DEVICE = torch.device(
-    "cuda" if torch.cuda.is_available() else "cpu"
-)
+DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # ============================================================
 # CONFIG
@@ -23,6 +21,7 @@ MASK_MODEL = "microsoft/codebert-base-mlm"
 MASK_RATE = 0.05
 TOP_P = 0.1
 SAMPLES = 30
+THRESHOLD = 0.97
 
 SEED = 42
 
@@ -34,36 +33,37 @@ random.seed(SEED)
 np.random.seed(SEED)
 torch.manual_seed(SEED)
 
-score_tok = AutoTokenizer.from_pretrained(
-    SCORING_MODEL
+score_tok = AutoTokenizer.from_pretrained(SCORING_MODEL)
+
+score_model = (
+    AutoModelForCausalLM.from_pretrained(
+        SCORING_MODEL,
+        torch_dtype=torch.float16 if DEVICE.type == "cuda" else torch.float32,
+    )
+    .eval()
+    .to(DEVICE)
 )
 
-score_model = AutoModelForCausalLM.from_pretrained(
-    SCORING_MODEL,
-    torch_dtype=torch.float16 if DEVICE.type == "cuda" else torch.float32,
-).eval().to(DEVICE)
+mask_tok = AutoTokenizer.from_pretrained(MASK_MODEL)
 
-mask_tok = AutoTokenizer.from_pretrained(
-    MASK_MODEL
-)
-
-mask_model = AutoModelForMaskedLM.from_pretrained(
-    MASK_MODEL
-).eval().to(DEVICE)
+mask_model = AutoModelForMaskedLM.from_pretrained(MASK_MODEL).eval().to(DEVICE)
 
 MASK_ID = mask_tok.mask_token_id
 
 LOW_INFO = {
-    "{", "}", "(", ")", "[", "]",
-    ":", ";", ",", ".", "#",
+    "{",
+    "}",
+    "(",
+    ")",
+    "[",
+    "]",
+    ":",
+    ";",
+    ",",
+    ".",
+    "#",
 }
 
-KEYWORDS = {
-    "if", "for", "while", "return",
-    "class", "def", "import", "from",
-    "try", "except", "finally",
-    "with", "lambda",
-}
 
 def informative(tok):
 
@@ -72,17 +72,14 @@ def informative(tok):
     if not t:
         return False
 
-    if t in LOW_INFO or t in KEYWORDS:
-        return False
-
-
-    if len(t) <= 2:
+    if t in LOW_INFO:
         return False
 
     if all(c in "_-=+*/<>!&|" for c in t):
         return False
 
     return True
+
 
 def normalize(x):
 
@@ -91,10 +88,7 @@ def normalize(x):
     if np.allclose(x.max(), x.min()):
         return np.ones_like(x) * 0.5
 
-    return (
-        (x - x.min())
-        / (x.max() - x.min())
-    )
+    return (x - x.min()) / (x.max() - x.min())
 
 
 def code_nll(code):
@@ -111,34 +105,29 @@ def code_nll(code):
 
     with torch.no_grad():
 
-        out = score_model(
-            **enc,
-            labels=enc["input_ids"]
-        )
+        out = score_model(**enc, labels=enc["input_ids"])
 
     return out.loss.item()
 
 
 def line_losses(lines):
-
     vals = []
-
-    prefix = ""
-
     for line in lines:
-
-        current = prefix + line
-
         if not line.strip():
             vals.append(0.0)
-            prefix += line + "\n"
             continue
 
-        vals.append(
-            code_nll(current)
-        )
+        enc = score_tok(
+            line,
+            return_tensors="pt",
+            truncation=True,
+            max_length=512,
+        ).to(DEVICE)
 
-        prefix += line + "\n"
+        with torch.no_grad():
+            out = score_model(**enc, labels=enc["input_ids"])
+
+        vals.append(np.exp(out.loss.item()))
 
     return np.array(vals)
 
@@ -169,20 +158,10 @@ def perturb_code(
 
             tok = toks[i]
 
-            if (
-                informative(tok)
-                and random.random() < p
-            ):
+            if informative(tok) and random.random() < p:
 
-                span_len = random.choice([1, 1, 2])
-
-                for _ in range(span_len):
-
-                    if i < len(toks):
-                        new_toks.append(
-                            mask_tok.mask_token
-                        )
-                        i += 1
+                new_toks.append(mask_tok.mask_token)
+                i += 1
 
             else:
                 new_toks.append(tok)
@@ -192,29 +171,22 @@ def perturb_code(
 
     return perturbed
 
+
 # ============================================================
 # NUCLEUS SAMPLING
 # ============================================================
+
 
 def sample_top_p(
     logits,
     top_p=TOP_P,
 ):
 
-    probs = F.softmax(
-        logits,
-        dim=-1
-    )
+    probs = F.softmax(logits, dim=-1)
 
-    sorted_probs, sorted_idx = torch.sort(
-        probs,
-        descending=True
-    )
+    sorted_probs, sorted_idx = torch.sort(probs, descending=True)
 
-    cumulative = torch.cumsum(
-        sorted_probs,
-        dim=-1
-    )
+    cumulative = torch.cumsum(sorted_probs, dim=-1)
 
     keep = cumulative <= top_p
     keep[0] = True
@@ -223,16 +195,15 @@ def sample_top_p(
 
     filtered /= filtered.sum()
 
-    sampled = torch.multinomial(
-        filtered,
-        1
-    )
+    sampled = torch.multinomial(filtered, 1)
 
     return sorted_idx[sampled].item()
+
 
 # ============================================================
 # INFILLING
 # ============================================================
+
 
 def fill_masks(token_lists):
 
@@ -244,40 +215,23 @@ def fill_masks(token_lists):
 
         attempts = 0
 
-        while (
-            mask_tok.mask_token in toks
-            and attempts < 128
-        ):
+        while mask_tok.mask_token in toks and attempts < 128:
 
-            ids = mask_tok.convert_tokens_to_ids(
-                toks
-            )
+            ids = mask_tok.convert_tokens_to_ids(toks)
 
-            x = torch.tensor(
-                [ids],
-                device=DEVICE
-            )
+            x = torch.tensor([ids], device=DEVICE)
 
             with torch.no_grad():
 
-                logits = mask_model(
-                    x
-                ).logits[0]
+                logits = mask_model(x).logits[0]
 
-            positions = [
-                i for i, t in enumerate(toks)
-                if t == mask_tok.mask_token
-            ]
+            positions = [i for i, t in enumerate(toks) if t == mask_tok.mask_token]
 
             pos = random.choice(positions)
 
-            sampled = sample_top_p(
-                logits[pos]
-            )
+            sampled = sample_top_p(logits[pos])
 
-            token = mask_tok.convert_ids_to_tokens(
-                sampled
-            )
+            token = mask_tok.convert_ids_to_tokens(sampled)
 
             # avoid special tokens
             if token.strip() == "" or token in mask_tok.all_special_tokens:
@@ -287,22 +241,19 @@ def fill_masks(token_lists):
             toks[pos] = token
             attempts += 1
 
-        ids = mask_tok.convert_tokens_to_ids(
-            toks
-        )
+        ids = mask_tok.convert_tokens_to_ids(toks)
 
-        text = mask_tok.decode(
-            ids,
-            skip_special_tokens=True
-        )
+        text = mask_tok.decode(ids, skip_special_tokens=True)
 
         outputs.append(text)
 
     return outputs
 
+
 # ============================================================
 # SCORE
 # ============================================================
+
 
 def compute_score(code):
 
@@ -310,24 +261,16 @@ def compute_score(code):
 
     losses = line_losses(lines)
 
-    mu = np.mean(losses)
+    ppl = np.mean(losses)
 
-    sigma = np.std(losses)
+    std_ppl = np.std(losses)
 
-    burstiness = (
-        np.max(losses)
-        / (mu + 1e-8)
-    )
+    alpha, beta, gamma = 1.0, 0.5, 0.25
 
-    return (
-        1.0 * mu
-        + 0.5 * sigma
-        + 0.25 * burstiness
-    )
+    burstiness = np.max(losses) / (ppl + 1e-8)
 
-# ============================================================
-# DETECTOR
-# ============================================================
+    return alpha * ppl + beta * std_ppl + gamma * burstiness
+
 
 def detect(
     code,
@@ -353,65 +296,20 @@ def detect(
 
         filled = fill_masks(masked)
 
-        perturbed_code = "\n".join(
-            filled
-        )
+        perturbed_code = "\n".join(filled)
 
-        s = compute_score(
-            perturbed_code
-        )
+        s = compute_score(perturbed_code)
 
         if not np.isfinite(s):
             continue
 
         perturbed_scores.append(s)
 
-    perturbed_scores = np.array(
-        perturbed_scores
-    )
+    perturbed_scores = np.array(perturbed_scores)
 
     if len(perturbed_scores) == 0:
-        return {
-            "outcome": "unknown",
-            "probability": 0.0,
-            "z_score": 0.0,
-            "delta": 0.0,
-            "original_score": float(original_score),
-            "perturbed_mean": 0.0,
-            "perturbed_std": 0.0,
-        }
+        return 0.0
 
-    delta = (
-        perturbed_scores.mean()
-        - original_score
-    )
+    probability = np.mean(perturbed_scores > original_score)
 
-    z = (
-        delta
-        / (perturbed_scores.std() + 1e-8)
-    )
-
-    # empirical heuristic
-    probability = float(
-        1 / (1 + np.exp(-z))
-    )
-
-    outcome = (
-        "machine"
-        if z > 1.0
-        else "human"
-    )
-
-    return {
-        "outcome": outcome,
-        "probability": probability,
-        "z_score": float(z),
-        "delta": float(delta),
-        "original_score": float(original_score),
-        "perturbed_mean": float(
-            perturbed_scores.mean()
-        ),
-        "perturbed_std": float(
-            perturbed_scores.std()
-        ),
-    }
+    return probability > THRESHOLD
