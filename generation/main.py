@@ -259,8 +259,6 @@ async def main() -> None:
 
     writer = create_jsonl_writer(OUTPUT_PATH)
 
-    try:
-
         workers = [
             asyncio.create_task(worker(f"Worker-{i+1}", writer, job_queue))
             for i in range(CONCURRENCY)
