@@ -4,7 +4,7 @@
 #SBATCH --error=logs/%x_%j.err
 #SBATCH --time=00:05:00
 #SBATCH --mem=4G
-#SBATCH --partition=short
+#SBATCH --partition=regular
 
 echo "Starting job on $(hostname)"
 echo "Time: $(date)"
