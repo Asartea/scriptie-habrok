@@ -21,7 +21,7 @@ SCORING_MODEL = "Salesforce/codegen-2B-mono"
 MASK_MODEL = "microsoft/codebert-base-mlm"
 
 MASK_RATE = 0.05
-TOP_P = 0.3
+TOP_P = 0.1
 SAMPLES = 30
 
 SEED = 42
@@ -33,10 +33,6 @@ SEED = 42
 random.seed(SEED)
 np.random.seed(SEED)
 torch.manual_seed(SEED)
-
-# ============================================================
-# LOAD MODELS
-# ============================================================
 
 score_tok = AutoTokenizer.from_pretrained(
     SCORING_MODEL
@@ -57,10 +53,6 @@ mask_model = AutoModelForMaskedLM.from_pretrained(
 
 MASK_ID = mask_tok.mask_token_id
 
-# ============================================================
-# TOKEN FILTERING
-# ============================================================
-
 LOW_INFO = {
     "{", "}", "(", ")", "[", "]",
     ":", ";", ",", ".", "#",
@@ -80,11 +72,9 @@ def informative(tok):
     if not t:
         return False
 
-    if t in LOW_INFO:
+    if t in LOW_INFO or t in KEYWORDS:
         return False
 
-    if t in KEYWORDS:
-        return False
 
     if len(t) <= 2:
         return False
@@ -93,10 +83,6 @@ def informative(tok):
         return False
 
     return True
-
-# ============================================================
-# NORMALIZATION
-# ============================================================
 
 def normalize(x):
 
@@ -110,9 +96,6 @@ def normalize(x):
         / (x.max() - x.min())
     )
 
-# ============================================================
-# FULL-SNIPPET NLL
-# ============================================================
 
 def code_nll(code):
 
@@ -135,9 +118,6 @@ def code_nll(code):
 
     return out.loss.item()
 
-# ============================================================
-# LINE WEIGHTS
-# ============================================================
 
 def line_losses(lines):
 
@@ -162,9 +142,6 @@ def line_losses(lines):
 
     return np.array(vals)
 
-# ============================================================
-# MASKING
-# ============================================================
 
 def perturb_code(
     lines,
@@ -303,7 +280,7 @@ def fill_masks(token_lists):
             )
 
             # avoid special tokens
-            if token.startswith("["):
+            if token.strip() == "" or token in mask_tok.all_special_tokens:
                 attempts += 1
                 continue
 
@@ -384,11 +361,25 @@ def detect(
             perturbed_code
         )
 
+        if not np.isfinite(s):
+            continue
+
         perturbed_scores.append(s)
 
     perturbed_scores = np.array(
         perturbed_scores
     )
+
+    if len(perturbed_scores) == 0:
+        return {
+            "outcome": "unknown",
+            "probability": 0.0,
+            "z_score": 0.0,
+            "delta": 0.0,
+            "original_score": float(original_score),
+            "perturbed_mean": 0.0,
+            "perturbed_std": 0.0,
+        }
 
     delta = (
         perturbed_scores.mean()
