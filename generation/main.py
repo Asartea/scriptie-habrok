@@ -193,7 +193,7 @@ def create_jsonl_writer(path: Path):
 
 
 async def process_job(writer, job: Job):
-    folder = f"data/{job.year}/{job.day}"
+    folder = f"generation/data/{job.year}/{job.day}"
 
     part1 = read_file(f"{folder}/part1.txt")
     part2 = read_file(f"{folder}/part2.txt")
