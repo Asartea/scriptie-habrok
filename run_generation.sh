@@ -19,8 +19,7 @@ cd ~/scriptie/habrok
 
 source .env
 pwd
-source .venv/bin/activate
-python3 -c "import torch; print('PyTorch version:', torch.__version__); print('CUDA available:', torch.cuda.is_available())"
+uv run test.py
 #uv run generation/main.py
 
 echo "Finished at $(date)"
