@@ -46,4 +46,4 @@ SYSTEM_PROMPT = (
 )
 
 OUTPUT_PATH = Path("output.jsonl")
-INPUT_DIR = Path("data")
+INPUT_DIR = Path("generation") / "data"
