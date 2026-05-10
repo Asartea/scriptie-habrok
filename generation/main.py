@@ -28,6 +28,8 @@ VARIANTS = [
     "Use concise code, minimizing line count.",
 ]
 
+SAMPLES_PER_VARIANT = 2
+
 SYSTEM_PROMPT = (
     "You are a Python code generator.\n"
     "Output raw Python source code only.\n"
@@ -37,6 +39,8 @@ SYSTEM_PROMPT = (
     "Do NOT include comments outside the code.\n"
     "The first character of your response must be valid Python code."
 )
+
+BATCH_SIZE = 4
 OUTPUT_PATH = Path("output.jsonl")
 
 
@@ -59,6 +63,7 @@ class LLMSample(Sample, total=True):
 
     model: str
     variant: str
+    sample_idx: int
 
 
 @dataclass(frozen=True)
@@ -67,10 +72,11 @@ class Job:
     day: int
     variant: str
     prompt: str
+    sample_idx: int
 
     @property
     def id(self) -> str:
-        return f"{self.year}-{self.day}-{self.variant}"
+        return f"{self.year}-{self.day}-{self.variant}-{self.sample_idx}"
 
 
 def extract_python(text: str) -> str:
@@ -115,12 +121,14 @@ def generate_batch(prompts: list[str], max_new_tokens: int = 1024) -> list[str]:
     outputs = model.generate(
         **inputs,
         max_new_tokens=max_new_tokens,
-        do_sample=False,
+        do_sample=True,
+        temperature=0.8,
+        top_p=0.9,
+        repetition_penalty=1.05,
         use_cache=True,
         pad_token_id=tokenizer.eos_token_id,
         eos_token_id=tokenizer.eos_token_id,
     )
-
     codes = [
         tokenizer.decode(
             output[inputs["input_ids"].shape[1] :],
@@ -236,7 +244,7 @@ def load_completed_jobs(path: Path) -> set[str]:
         for line in f:
             try:
                 sample = json.loads(line)
-                job_id = f"{sample['year']}-{sample['day']}-{sample['variant']}"
+                job_id = f"{sample['year']}-{sample['day']}-{sample['variant']}-{sample['sample_idx']}"
                 completed_ids.add(job_id)
             except (json.JSONDecodeError, KeyError):
                 continue
@@ -251,6 +259,7 @@ def create_sample(result: tuple[Job, str]) -> LLMSample:
         day=str(job.day),
         label="machine",
         variant=job.variant,
+        sample_idx=job.sample_idx,
         code=code,
         language="python",
         model=MODEL,
@@ -281,8 +290,16 @@ def build_jobs() -> list[Job]:
             for variant in VARIANTS:
                 prompt = build_prompt(problem, variant)
 
-                jobs.append(Job(year, day, variant, prompt))
-
+                for sample_idx in range(SAMPLES_PER_VARIANT):
+                    jobs.append(
+                        Job(
+                            year=year,
+                            day=day,
+                            variant=variant,
+                            prompt=prompt,
+                            sample_idx=sample_idx,
+                        )
+                    )
     # return jobs
     return random.sample(jobs, 10)
 
