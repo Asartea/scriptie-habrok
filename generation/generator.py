@@ -7,7 +7,7 @@ tokenizer: AutoTokenizer = AutoTokenizer.from_pretrained(MODEL, padding_side="le
 tokenizer.pad_token = tokenizer.eos_token
 model: AutoModelForCausalLM = AutoModelForCausalLM.from_pretrained(
     MODEL,
-    dtype=torch.float16,
+    dtype=torch.bfloat16,
     device_map="auto",
 )
 

@@ -2,11 +2,11 @@ from pathlib import Path
 
 import torch
 
-MODEL = "deepseek-ai/DeepSeek-Coder-V2-Lite-Instruct"
+MODEL = "mistralai/Codestral-22B-v0.1"
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-BATCH_SIZE = 8
+BATCH_SIZE = 4
 MAX_NEW_TOKENS = 2048
 
 TEST_MODE = True
