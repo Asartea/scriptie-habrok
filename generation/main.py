@@ -1,6 +1,7 @@
 from generation.config import (
     BATCH_SIZE,
     OUTPUT_PATH,
+    MAX_NEW_TOKENS,
 )
 from generation.jobs import build_jobs, run_jobs
 from generation.storage import (
@@ -21,6 +22,7 @@ def main() -> None:
         jobs,
         max_retries=3,
         batch_size=BATCH_SIZE,
+        max_new_tokens=MAX_NEW_TOKENS,
     )
 
     write_all_samples(

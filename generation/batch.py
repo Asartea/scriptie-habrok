@@ -8,7 +8,7 @@ from generation.validation import CodeValidationError, validate_code
 
 
 def run_batch(
-    jobs: list[Job], batch_size: int, seed: int | None = None
+    jobs: list[Job], batch_size: int, seed: int | None = None, max_new_tokens: int = 512
 ) -> list[tuple[Job, str]]:
     results: list[tuple[Job, str]] = []
 
@@ -18,7 +18,7 @@ def run_batch(
             render_chat_prompt(tokenizer, SYSTEM_PROMPT, job.prompt) for job in batch
         ]
 
-        codes = generate_batch(prompts, seed=seed)
+        codes = generate_batch(prompts, max_new_tokens, seed)
         results.extend((job, code) for job, code in zip(batch, codes, strict=True))
 
     return results

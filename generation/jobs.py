@@ -60,8 +60,13 @@ def build_jobs() -> list[Job]:
     return jobs
 
 
-def run_jobs(jobs: list[Job], max_retries: int = 3, batch_size: int = 8):
-    results = run_batch(jobs, batch_size)
+def run_jobs(
+    jobs: list[Job],
+    max_retries: int = 3,
+    batch_size: int = 8,
+    max_new_tokens: int = 512,
+) -> list[tuple[Job, str]]:
+    results = run_batch(jobs, batch_size, max_new_tokens)
 
     valid, failed = validate_batch(results)
     all_valid = valid
