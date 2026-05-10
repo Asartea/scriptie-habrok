@@ -13,6 +13,7 @@ DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 MODEL = "Qwen/Qwen2.5-Coder-14B-Instruct"
 tokenizer = AutoTokenizer.from_pretrained(MODEL, padding_side="left")
+tokenizer.pad_token = tokenizer.eos_token
 model = AutoModelForCausalLM.from_pretrained(
     MODEL,
     dtype=torch.float16,
@@ -72,14 +73,36 @@ class Job:
         return f"{self.year}-{self.day}-{self.variant}"
 
 
-def strip_code_fences(text: str) -> str:
+def extract_python(text: str) -> str:
     text = text.strip()
 
-    text = re.sub(r"^```python\s*", "", text)
-    text = re.sub(r"^```\s*", "", text)
-    text = re.sub(r"\s*```$", "", text)
+    fenced = re.search(r"```(?:python)?\s*(.*?)```", text, re.DOTALL)
+    if fenced:
+        return fenced.group(1).strip()
 
-    return text.strip()
+    patterns = (
+        "import ",
+        "from ",
+        "def ",
+        "class ",
+        "for ",
+        "while ",
+        "if ",
+        "with ",
+        "try:",
+    )
+
+    lines = text.splitlines()
+
+    for i, line in enumerate(lines):
+        stripped = line.lstrip()
+
+        if stripped.startswith(patterns) or re.match(
+            r"^[A-Za-z_][A-Za-z0-9_]*\s*=", stripped
+        ):
+            return "\n".join(lines[i:]).strip()
+
+    return text
 
 
 @torch.inference_mode()
@@ -93,24 +116,24 @@ def generate_batch(prompts: list[str], max_new_tokens: int = 1024) -> list[str]:
         **inputs,
         max_new_tokens=max_new_tokens,
         do_sample=False,
+        use_cache=True,
         pad_token_id=tokenizer.eos_token_id,
+        eos_token_id=tokenizer.eos_token_id,
     )
-
-    prompt_lengths = inputs["attention_mask"].sum(dim=1)
 
     codes = [
         tokenizer.decode(
-            output[prompt_len:],
+            output[inputs["input_ids"].shape[1] :],
             skip_special_tokens=True,
         )
-        for output, prompt_len in zip(outputs, prompt_lengths)
+        for output in outputs
     ]
 
     del outputs
     del inputs
     torch.cuda.empty_cache()
 
-    return [strip_code_fences(code) for code in codes]
+    return [extract_python(code) for code in codes]
 
 
 def run_batch(jobs: list[Job], batch_size: int) -> list[tuple[Job, str]]:
@@ -119,8 +142,19 @@ def run_batch(jobs: list[Job], batch_size: int) -> list[tuple[Job, str]]:
     for i in range(0, len(jobs), batch_size):
         batch = jobs[i : i + batch_size]
         prompts = [j.prompt for j in batch]
+        rendered_prompts = []
 
-        codes = generate_batch(prompts)
+        for prompt in prompts:
+            messages = [
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "user", "content": prompt},
+            ]
+            rendered_prompt = tokenizer.apply_chat_template(
+                messages, tokenize=False, add_generation_prompt=True
+            )
+            rendered_prompts.append(rendered_prompt)
+
+        codes = generate_batch(rendered_prompts)
         results.extend((job, code) for job, code in zip(batch, codes, strict=True))
 
     return results
