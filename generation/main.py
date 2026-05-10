@@ -1,12 +1,13 @@
-import torch
-from transformers import AutoTokenizer, AutoModelForCausalLM
-from typing import TypedDict
-from pathlib import Path
 import json
 import re
+import sys
 from dataclasses import dataclass
+from pathlib import Path
+from typing import TypedDict
 
-from code_validation import validate_code, CodeValidationError
+import torch
+from code_validation import CodeValidationError, validate_code
+from transformers import AutoModelForCausalLM, AutoTokenizer
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -133,7 +134,9 @@ def validate_batch(results: list[tuple[Job, str]]):
         try:
             validate_code(code)
             valid.append((job, code))
-        except CodeValidationError:
+        except CodeValidationError as e:
+            print(f"Validation failed for {job.id}: {e}", file=sys.stderr)
+            print(f"Code:\n{code}\n", file=sys.stderr, flush=True)
             failed.append(job)
 
     return valid, failed
