@@ -10,6 +10,6 @@ module load uv
 cd ~/scriptie/habrok
 
 source .env
-uv run generation/main.py
+uv run -m generation.main
 
 echo "Finished at $(date)"
