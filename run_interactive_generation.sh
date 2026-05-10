@@ -1,9 +1,9 @@
+#!/bin/bash
 echo "Starting job on $(hostname)"
 echo "Time: $(date)"
 
 set -e
 
-module load EESSI/2025.06
 module load Python/3.13.5-GCCcore-14.3.0
 module load uv
 
