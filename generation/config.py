@@ -7,9 +7,9 @@ MODEL = "mistralai/Codestral-22B-v0.1"
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 BATCH_SIZE = 4
-MAX_NEW_TOKENS = 2048
+MAX_NEW_TOKENS = 8192
 
-TEST_MODE = True
+TEST_MODE = False
 TEST_SAMPLE_SIZE = 10
 
 YEARS = [2021, 2024]

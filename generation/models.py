@@ -1,6 +1,8 @@
 from dataclasses import dataclass
 from typing import TypedDict
 
+from generation.config import MODEL
+
 
 class Sample(TypedDict):
     """Base sample type for dataset code."""
@@ -31,4 +33,6 @@ class Job:
 
     @property
     def id(self) -> str:
-        return f"{self.year}-{self.day}-{self.code_variant}-{self.style_variant}"
+        return (
+            f"{MODEL}-{self.year}-{self.day}-{self.code_variant}-{self.style_variant}"
+        )
