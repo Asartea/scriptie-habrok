@@ -7,7 +7,7 @@ MODEL = "Qwen/Qwen2.5-Coder-14B-Instruct"
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 BATCH_SIZE = 8
-MAX_NEW_TOKENS = 1024
+MAX_NEW_TOKENS = 2048
 
 TEST_MODE = True
 TEST_SAMPLE_SIZE = 10
