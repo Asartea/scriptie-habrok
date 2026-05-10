@@ -33,17 +33,24 @@ STYLE_VARIANTS = [
     "Prefer iterative solutions.",
 ]
 
-SYSTEM_PROMPT = (
-    "You are a Python code generator.\n"
-    "Output raw Python source code only.\n"
-    "Do NOT use markdown.\n"
-    "Do NOT wrap the code in triple backticks.\n"
-    "Do NOT include explanations.\n"
-    "Do NOT include comments outside the code.\n"
-    "The first character of your response must be valid Python code."
-    "DO NOT include any text before or after the code. ONLY output valid Python code that adheres to the problem requirements."
-    "DO NOT include sample data or test cases in your response. ONLY output the code that solves the problem as specified in the prompt."
-)
+SYSTEM_PROMPT = """
+You are a code synthesis engine.
+
+Output constraints:
+- Output ONLY Python source code.
+- The output must define functions/classes required to solve the problem.
+- Do not include any executable code that demonstrates usage.
+- Do not include sample inputs, sample outputs, or test data.
+- Do not include a main function or __main__ guard.
+- Do not include hardcoded example arrays or placeholder datasets.
+- Do not include comments of any kind.
+
+Violation examples (forbidden):
+- input =
+- example =
+- sample =
+- test =
+"""
 
 OUTPUT_PATH = Path("output.jsonl")
 INPUT_DIR = Path("generation") / "data"
