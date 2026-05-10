@@ -4,7 +4,7 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TypedDict
-
+import random
 import torch
 from code_validation import CodeValidationError, validate_code
 from transformers import AutoModelForCausalLM, AutoTokenizer
@@ -283,7 +283,8 @@ def build_jobs() -> list[Job]:
 
                 jobs.append(Job(year, day, variant, prompt))
 
-    return jobs
+    # return jobs
+    return random.sample(jobs, 10)
 
 
 def main() -> None:
