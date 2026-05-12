@@ -106,7 +106,7 @@ def execute(
     find_github_repos_and_clone(top_users, base_dir, target_years)
     all_solution_files = find_solution_paths_in_repos_and_extract_solutions(base_dir)
     samples = build_samples(all_solution_files)
-    validate_and_save_samples(samples, Path(base_dir) / "extracted_solutions_v3.jsonl")
+    validate_and_save_samples(samples, Path(base_dir) / "extracted_solutions.jsonl")
 
 
 def main() -> None:
@@ -115,15 +115,7 @@ def main() -> None:
     days = [str(i) for i in range(1, 26)]
     base_url = "https://adventofcode.com"
     base_dir = "data"
-    # execute(target_years, days, base_url, base_dir)
-    # find_solution_paths_in_repos_and_extract_solutions(base_dir)
-
-    # data/extracted_solutions_v2.jsonl
-    with open("data/extracted_solutions_v2.jsonl", "r", encoding="utf-8") as f:
-        samples = [json.loads(line) for line in f]
-    valid_samples = validate_samples(samples)
-    print(f"Valid samples: {len(valid_samples)} / {len(samples)}")
-    save_jsonl(valid_samples, Path(base_dir) / "extracted_solutions_v3.jsonl")
+    execute(target_years, days, base_url, base_dir)
 
 
 if __name__ == "__main__":
