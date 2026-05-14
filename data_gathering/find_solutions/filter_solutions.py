@@ -1,9 +1,7 @@
 import re
 from pathlib import Path
 
-YEAR_PATTERN = re.compile(
-    r"(20\d{2}|aoc[\s_-]?\d{2,4}|adventofcode[\s_-]?\d{2,4})", re.IGNORECASE
-)
+from data_gathering.find_solutions.inference import YEAR_PATTERN
 
 
 def detect_year(path: Path) -> str | None:

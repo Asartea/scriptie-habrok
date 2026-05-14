@@ -48,7 +48,7 @@ def get_day_leaderboard(year: str, day: str, base_url: str) -> str:
 
 
 def scrape_data(
-    year: str, days: list[str], base_url: str, base_dir: str, interval: int = 5
+    year: str, days: list[str], base_url: str, base_dir: Path, interval: int = 5
 ) -> None:
     """Scrape both global and day-specific leaderboards for a given year.
 
@@ -62,7 +62,7 @@ def scrape_data(
         interval: Time in seconds to wait between requests to avoid rate limiting.
     """
     # Create directory structure if it doesn't exist
-    html_dir = Path(base_dir) / year / "html"
+    html_dir = base_dir / year / "html"
     html_dir.mkdir(parents=True, exist_ok=True)
 
     # Fetch and save global leaderboard

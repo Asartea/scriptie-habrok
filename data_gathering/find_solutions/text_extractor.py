@@ -1,7 +1,7 @@
 from pathlib import Path
 from typing import Optional
 
-from find_solutions.inference import infer_day, infer_year
+from data_gathering.find_solutions.inference import infer_day, infer_year
 
 from models.models import HumanSample
 
@@ -33,7 +33,7 @@ def clean_code(text: str) -> str:
     return text.strip()
 
 
-def build_sample(repo_path: Path, file_path: Path) -> Optional[HumanSample]:
+def build_sample(file_path: Path) -> Optional[HumanSample]:
     """
     Construct a structured dataset sample from a solution file.
 
@@ -63,18 +63,22 @@ def build_sample(repo_path: Path, file_path: Path) -> Optional[HumanSample]:
     if year is None or day is None:
         return None
 
+    author = file_path.parts[3]
+    repo = file_path.parts[4]
+
     return {
         "code": cleaned_code,
         "label": "human",
         "year": year,
         "day": day,
         "language": "python",
-        "repo": repo_path.name,
+        "repo": repo,
+        "author": author,
         "path": str(file_path),
     }
 
 
-def build_samples(repo_path: Path, solution_files: list[Path]) -> list[HumanSample]:
+def build_samples(solution_files: list[Path]) -> list[HumanSample]:
     """
     Convert a list of solution file paths into structured dataset samples.
 
@@ -83,7 +87,7 @@ def build_samples(repo_path: Path, solution_files: list[Path]) -> list[HumanSamp
     samples: list[HumanSample] = []
 
     for file_path in solution_files:
-        sample = build_sample(repo_path, file_path)
+        sample = build_sample(file_path)
         if sample:
             samples.append(sample)
 
