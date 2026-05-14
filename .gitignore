@@ -12,3 +12,6 @@ __pycache__/
 
 # Human data files
 data-gathering/data/
+
+# AoC problems
+data_generation/data/
