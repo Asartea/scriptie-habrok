@@ -24,6 +24,7 @@ class HumanSample(Sample, total=True):
     """Sample type for human-written code."""
 
     repo: str
+    author: str
     path: str
 
 

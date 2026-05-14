@@ -1,4 +1,5 @@
 import ast
+import re
 
 
 class CodeValidationError(Exception):
@@ -19,13 +20,29 @@ class SyntaxErrorInCode(CodeValidationError):
         super().__init__(f"Syntax error in generated code: {error}")
 
 
-class MissingFunctionError(CodeValidationError):
-    """Raised when the generated code is missing any functions."""
+class NoMeaningfulCodeError(CodeValidationError):
+    """Raised when the generated code does not contain meaningful statements."""
 
-    def __init__(self, function_name: str):
-        super().__init__(
-            f"Generated code is missing required function: {function_name}"
-        )
+    def __init__(
+        self, message: str = "Generated code does not contain meaningful statements."
+    ):
+        super().__init__(message)
+
+
+def extract_code(text: str) -> str:
+    pattern = re.compile(r"```(?:python|py)\s*(.*?)\s*```", re.DOTALL | re.IGNORECASE)
+
+    match = pattern.search(text)
+    return match.group(1).strip() if match else text.strip()
+
+
+def is_meaningful_code(code: str) -> bool:
+
+    return any(
+        isinstance(node, ast.stmt)
+        and not isinstance(node, (ast.Import, ast.ImportFrom))
+        for node in ast.walk(ast.parse(code))
+    )
 
 
 def validate_code(code: str):
@@ -37,15 +54,17 @@ def validate_code(code: str):
     Raises:
         EmptyCodeError: If the code is empty or only whitespace.
         SyntaxErrorInCode: If the code contains syntax errors.
-        MissingFunctionError: If the code does not contain any function definitions.
+        NoMeaningfulCodeError: If the code does not contain meaningful statements.
     """
     if not code or not code.strip():
         raise EmptyCodeError("Generated code is empty or whitespace.")
 
     try:
-        tree = ast.parse(code)
+        ast.parse(code)
     except SyntaxError as e:
         raise SyntaxErrorInCode(e) from e
 
-    if not any(isinstance(node, ast.FunctionDef) for node in ast.walk(tree)):
-        raise MissingFunctionError("At least one function definition is required.")
+    if not is_meaningful_code(code):
+        raise NoMeaningfulCodeError(
+            "Generated code does not contain meaningful statements."
+        )
