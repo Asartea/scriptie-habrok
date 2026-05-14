@@ -1,7 +1,20 @@
-from transformers import AutoTokenizer
+from itertools import product
+from random import shuffle
 
 
-class NormalConfig:
+class BaseConfig:
+    system_prompt: str
+    code_variants: list[str]
+    style_variants: list[str]
+    max_variants_pairs: int = 25
+
+    def generate_variant_pairs(self) -> list[tuple[str, str]]:
+        pairs = list(product(self.code_variants, self.style_variants))
+        shuffle(pairs)
+        return pairs[: self.max_variants_pairs]
+
+
+class NormalConfig(BaseConfig):
     system_prompt: str = """
 You are a code synthesis engine.
 
@@ -25,7 +38,9 @@ Violation examples (forbidden):
         "Use a functional programming style where possible.",
         "Avoid using advanced libraries; rely on basic Python constructs.",
         "Use concise code, minimizing line count.",
+        "Write readable code.",
     ]
+
     style_variants: list[str] = [
         "Prefer short variable names.",
         "Prefer descriptive variable names.",
@@ -38,7 +53,7 @@ Violation examples (forbidden):
     ]
 
 
-class CompProgrammingConfig:
+class CompProgrammingConfig(BaseConfig):
     system_prompt: str = """
 You are a code synthesis engine specialized in competitive programming problems.
 
@@ -64,10 +79,6 @@ Violation examples (forbidden):
         "Avoid using advanced libraries; rely on basic Python constructs.",
         "Use concise code, minimizing line count.",
         "Write code in the style of an Advent of Code leaderboard submission.",
-        "Favor clever shortcuts and compact logic over readability.",
-        "Assume the code is written under time pressure by an experienced competitor.",
-        "Prefer dense, idiomatic competitive programming code.",
-        "Optimize for fast parsing and low overhead.",
     ]
 
     style_variants: list[str] = [
@@ -76,14 +87,11 @@ Violation examples (forbidden):
         "Use helper functions.",
         "Avoid helper functions.",
         "Favor list comprehensions.",
-        "Avoid comprehensions.",
-        "Use recursion where reasonable.",
         "Prefer iterative solutions.",
         "Use compact control flow.",
         "Minimize vertical whitespace.",
         "Favor in-place mutation where practical.",
         "Use standard library utilities aggressively.",
-        "Prefer flat code structure over abstraction.",
     ]
 
 

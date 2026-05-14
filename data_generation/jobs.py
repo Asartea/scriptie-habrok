@@ -51,14 +51,12 @@ def build_jobs(
                 year=year,
                 day=day,
                 model=model,
+                use_comp_programming=comp_programming,
                 code_variant=code_variant,
                 style_variant=style_variant,
                 prompt=build_prompt(problem, code_variant, style_variant),
             )
-            for code_variant, style_variant in product(
-                config.code_variants,
-                config.style_variants,
-            )
+            for code_variant, style_variant in config.generate_variant_pairs()
         )
 
     jobs = [job for job in jobs if job.id not in completed_ids]

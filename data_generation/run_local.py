@@ -23,7 +23,6 @@ def run_local_model(
     years: list[int],
     days: list[int],
     model: str,
-    output_path: Path,
     *,
     comp_programming: bool = False,
     test_mode: bool = False,
@@ -31,9 +30,23 @@ def run_local_model(
     max_new_tokens: int = 512,
     batch_size: int = 4,
 ):
+    output_path = Path("data_generation") / "data" / model / "samples.jsonl"
+    data_dir = Path("data_generation") / "data" / "aoc-problems"
     completed = load_completed_samples(output_path, model)
 
     prompt_config = CompProgrammingConfig() if comp_programming else NormalConfig()
+
+    jobs = build_jobs(
+        years,
+        days,
+        data_dir,
+        model,
+        completed,
+        comp_programming=comp_programming,
+        test_mode=test_mode,
+        test_sample_size=test_sample_size,
+    )
+    print(f"Pending jobs: {len(jobs)}")
 
     generation_tokenizer = GenerationTokenizer(model)
     system_prompt = prompt_config.system_prompt
@@ -42,18 +55,6 @@ def run_local_model(
         generation_tokenizer,
         system_prompt,
     )
-
-    jobs = build_jobs(
-        years,
-        days,
-        output_path,
-        model,
-        completed,
-        comp_programming=comp_programming,
-        test_mode=test_mode,
-        test_sample_size=test_sample_size,
-    )
-    print(f"Pending jobs: {len(jobs)}")
 
     final = run_jobs(
         jobs,
@@ -75,7 +76,6 @@ def parse_args() -> Namespace:
     parser = ArgumentParser(description="Run local generation pipeline")
 
     parser.add_argument("--model", type=str, required=True)
-    parser.add_argument("--output-path", type=Path, required=True)
 
     parser.add_argument("--years", type=int, nargs="+", required=True)
     parser.add_argument("--days", type=int, nargs="+", required=True)
@@ -92,12 +92,10 @@ def parse_args() -> Namespace:
 
 def main() -> None:
     args = parse_args()
-
     run_local_model(
         years=args.years,
         days=args.days,
         model=args.model,
-        output_path=args.output_path,
         comp_programming=args.comp_programming,
         test_mode=args.test_mode,
         test_sample_size=args.test_sample_size,

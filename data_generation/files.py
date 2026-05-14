@@ -30,6 +30,7 @@ def create_sample(result: tuple[Job, str]) -> LLMSample:
         prompt=job.prompt,
         code_variant=job.code_variant,
         style_variant=job.style_variant,
+        use_comp_programming=job.use_comp_programming,
         code=code,
         label="machine",
         year=str(job.year),
