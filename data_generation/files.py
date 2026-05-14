@@ -1,12 +1,11 @@
 import json
 from pathlib import Path
 
-from data_generation.config import MODEL
-from data_generation.models import Job
 from models.models import LLMSample
+from data_generation.models import Job
 
 
-def load_completed_samples(path: Path) -> set[str]:
+def load_completed_samples(path: Path, model: str) -> set[str]:
     if not path.exists():
         return set()
 
@@ -15,8 +14,9 @@ def load_completed_samples(path: Path) -> set[str]:
         for line in f:
             try:
                 sample = json.loads(line)
-                job_id = f"{sample['model']}-{sample['year']}-{sample['day']}-{sample['code_variant']}-{sample['style_variant']}"
-                completed_ids.add(job_id)
+                if sample["model"] == model:
+                    job_id = f"{sample['model']}-{sample['year']}-{sample['day']}-{sample['code_variant']}-{sample['style_variant']}"
+                    completed_ids.add(job_id)
             except (json.JSONDecodeError, KeyError):
                 continue
 
@@ -26,7 +26,7 @@ def load_completed_samples(path: Path) -> set[str]:
 def create_sample(result: tuple[Job, str]) -> LLMSample:
     job, code = result
     return LLMSample(
-        model=MODEL,
+        model=job.model,
         prompt=job.prompt,
         code_variant=job.code_variant,
         style_variant=job.style_variant,
