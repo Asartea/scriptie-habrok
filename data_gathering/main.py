@@ -112,9 +112,7 @@ def main() -> None:
     days = [str(i) for i in range(1, 26)]
     base_url = "https://adventofcode.com"
     base_dir = Path("data_gathering/") / "data"
-    all_solution_files = find_solution_paths_in_repos_and_extract_solutions(base_dir)
-    samples = build_samples(all_solution_files)
-    validate_and_save_samples(samples, Path(base_dir) / "extracted_solutions.jsonl")
+    execute(target_years, days, base_url, base_dir)
 
 
 if __name__ == "__main__":
