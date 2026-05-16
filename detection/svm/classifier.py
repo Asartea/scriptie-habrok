@@ -46,9 +46,9 @@ def build_group_id(sample: HumanSample | LLMSample, mode: str = "problem") -> st
             return f"{base}_human_{sample['author']}"
         return (
             f"{base}_llm_"
-            f"{sample.get('model','unknown')}_"
-            f"{sample.get('code_variant','')}_"
-            f"{sample.get('style_variant','')}"
+            f"{sample.get('model', 'unknown')}_"
+            f"{sample.get('code_variant', '')}_"
+            f"{sample.get('style_variant', '')}"
         )
 
     raise ValueError(f"Unknown mode: {mode}")

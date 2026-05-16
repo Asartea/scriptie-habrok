@@ -93,7 +93,6 @@ def run_ablation_cv(
         for fold, (train_idx, test_idx) in enumerate(
             gkf.split(samples, labels, groups)
         ):
-
             train_samples: Samples = [samples[i] for i in train_idx]
             test_samples: Samples = [samples[i] for i in test_idx]
 
