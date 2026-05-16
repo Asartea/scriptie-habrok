@@ -1,12 +1,9 @@
 from argparse import ArgumentParser, Namespace
 from openai import OpenAI
 from pathlib import Path
-import json
 
 from data_generation.files import (
-    create_sample,
     load_completed_samples,
-    write_all_samples,
 )
 from utils import write_to_jsonl
 from data_generation.jobs import build_jobs
@@ -42,7 +39,7 @@ def run_openai_model(
 
     system_prompt = prompt_config.system_prompt
 
-    data_dir = Path("data") / "aoc-problems"
+    data_dir = Path("data_generation") / "data" / "aoc-problems"
 
     jobs = build_jobs(
         years,
@@ -80,72 +77,33 @@ def parse_args() -> Namespace:
     parser = ArgumentParser(description="Run OpenAI generation pipeline")
 
     parser.add_argument("--model", type=str, required=True)
-    parser.add_argument("--output-dir", type=Path, required=True)
 
     parser.add_argument("--years", type=int, nargs="+", required=True)
     parser.add_argument("--days", type=int, nargs="+", required=True)
 
     parser.add_argument("--comp-programming", action="store_true")
-    parser.add_argument("--test-mode", action="store_true")
+    parser.add_argument("--test-mode", action="store_true", default=False)
 
     parser.add_argument("--test-sample-size", type=int, default=10)
     parser.add_argument("--max-new-tokens", type=int, default=512)
-    parser.add_argument("--batch-size", type=int, default=4)
 
     return parser.parse_args()
 
 
 def main() -> None:
-    """args = parse_args()
+    args = parse_args()
+
+    output_dir = Path("data_generation") / "data" / f"{args.model}"
 
     run_openai_model(
         years=args.years,
         days=args.days,
+        output_dir=output_dir,
         model=args.model,
-        output_dir=args.output_dir,
         comp_programming=args.comp_programming,
         test_mode=args.test_mode,
         test_sample_size=args.test_sample_size,
         max_new_tokens=args.max_new_tokens,
-    )
-    """
-
-    output_dir = Path("data") / "gpt-5-mini-2025-08-07"
-    run_openai_model(
-        years=[2021, 2024],
-        days=[
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12,
-            13,
-            14,
-            15,
-            16,
-            17,
-            18,
-            19,
-            20,
-            21,
-            22,
-            23,
-            24,
-            25,
-        ],
-        model="gpt-5-mini-2025-08-07",
-        output_dir=output_dir,
-        comp_programming=False,
-        test_mode=True,
-        test_sample_size=10,
-        max_new_tokens=512,
     )
 
 

@@ -13,4 +13,5 @@ class Job:
 
     @property
     def id(self) -> str:
-        return f"{self.model}-{self.year}-{self.day}-{self.code_variant}-{self.style_variant}-{self.use_comp_programming}"
+        comp_type = "comp" if self.use_comp_programming else "normal"
+        return f"{self.model}@{self.year}@{self.day}@{self.code_variant}@{self.style_variant}@{comp_type}"
