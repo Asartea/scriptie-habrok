@@ -40,6 +40,8 @@ def create_sample(result: tuple[Job, str]) -> LLMSample:
 
 
 def write_all_samples(path: Path, samples: list[LLMSample]) -> None:
+    if not path.parent.exists():
+        path.parent.mkdir(parents=True, exist_ok=True)
     with open(path, "a", encoding="utf-8") as f:
         for sample in samples:
             json.dump(sample, f)
