@@ -30,7 +30,8 @@ def run_local_model(
     max_new_tokens: int = 512,
     batch_size: int = 4,
 ):
-    output_path = Path("data_generation") / "data" / model / "samples.jsonl"
+    output_file_name = "comp_samples.jsonl" if comp_programming else "samples.jsonl"
+    output_path = Path("data_generation") / "data" / model / output_file_name
     data_dir = Path("data_generation") / "data" / "aoc-problems"
     completed = load_completed_samples(output_path, model)
 
