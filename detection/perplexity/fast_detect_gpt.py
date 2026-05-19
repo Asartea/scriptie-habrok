@@ -2,6 +2,7 @@ from fast_detect_gpt.scripts.local_infer import FastDetectGPT
 from types import SimpleNamespace
 from utils.utils import load_samples
 import random
+import torch
 
 
 def main():
@@ -11,6 +12,7 @@ def main():
         scoring_model_name=scoring_model,
         sampling_model_name=sampling_model,
         cache_dir="./cache",
+        device="cuda" if torch.cuda.is_available() else "cpu",
     )
     detector = FastDetectGPT(args)
     samples = load_samples("data/samples.jsonl")
