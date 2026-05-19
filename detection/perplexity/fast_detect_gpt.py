@@ -21,7 +21,6 @@ from models.models import Samples
 SCORING_MODEL = "bigcode/starcoder2-15b"
 SAMPLING_MODEL = "bigcode/starcoder2-15b"
 
-DEVICE = "cuda:0" if torch.cuda.is_available() else "cpu"
 CACHE_DIR = environ.get("HF_CACHE_DIR", None)
 
 
@@ -134,7 +133,6 @@ def main():
     detector = FastDetectGPT(
         scoring_model_name=SCORING_MODEL,
         sampling_model_name=SAMPLING_MODEL,
-        device=DEVICE,
         cache_dir=CACHE_DIR,
         extra_distrib_params={},
     )
