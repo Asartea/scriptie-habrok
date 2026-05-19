@@ -45,7 +45,7 @@ def retrieve_batch_file(
 
         # FIXME: This is a really stupid hack for a really stupid problem:
         # Its been fixed in the batch job creation code, but there is still an OpenAI run with the old stuff and I don't want to have to rerun that
-        # This replaces "in-place" with "in_place" (which is what origjnally caused the problem), changes all seperators to "@", and then changes "in_place" back to "in-place" so that the rest of the code can work as normal
+        # This replaces known stuff with hyphens with a underscore version (which is what origjnally caused the problem), changes all seperators to "@", and then changes back the rest of the underscore stuff to hyphens so that the rest of the code can work as normal
         if "in-place" in custom_id or "gpt-5-mini-2025-08-07" in custom_id:
             custom_id = custom_id.replace(
                 "in-place",
