@@ -174,20 +174,9 @@ def class_per_day_distribution(samples: Samples):
     return distribution
 
 
-def heatmap_from_year_data(year_data):
-    # convert: day -> source -> count
-    transformed = defaultdict(lambda: Counter())
-
-    for day, sources in year_data.items():
-        for source, count in sources.items():
-            transformed[source][day] = count
-
-    return transformed
-
-
 def main():
     samples = load_samples(Path("data/samples.jsonl"))
-    # year_distributions = year_distribution(samples)
+    output_dir = Path("plots")
     class_distributions = class_distribution(samples)
     competitive_programming_distributions = competitive_programming_distribution(
         samples
@@ -199,7 +188,7 @@ def main():
         x_label="Class",
         y_label="Count",
         counter=class_distributions,
-        file_name="class_distribution.png",
+        file_name=output_dir / "class_distribution.png",
     )
 
     plot_grouped_distribution(
@@ -207,7 +196,7 @@ def main():
         x_label="Model",
         y_label="Count",
         counter=competitive_programming_distributions,
-        file_name="competitive_programming_distribution.png",
+        file_name=output_dir / "competitive_programming_distribution.png",
     )
 
     plot_grouped_line_plot(
@@ -216,15 +205,7 @@ def main():
         y_label="Count",
         legend_title="Source",
         counter=class_per_day_distributions["2021"],
-        file_name="source_distribution_2021_lineplot.png",
-    )
-
-    plot_grouped_distribution(
-        title="Source Distribution per Day for 2021",
-        x_label="Model",
-        y_label="Count",
-        counter=class_per_day_distributions["2021"],
-        file_name="source_distribution_2021.png",
+        file_name=output_dir / "source_distribution_2021_lineplot.png",
     )
 
     plot_grouped_line_plot(
@@ -233,18 +214,8 @@ def main():
         y_label="Count",
         legend_title="Source",
         counter=class_per_day_distributions["2024"],
-        file_name="source_distribution_2024_lineplot.png",
+        file_name=output_dir / "source_distribution_2024_lineplot.png",
     )
-
-    plot_grouped_distribution(
-        title="Source Distribution per Day for 2024",
-        x_label="Model",
-        y_label="Count",
-        counter=class_per_day_distributions["2024"],
-        file_name="source_distribution_2024.png",
-    )
-
-    print(class_per_day_distributions["2024"])
 
 
 if __name__ == "__main__":
