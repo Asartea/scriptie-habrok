@@ -1,5 +1,5 @@
 from fast_detect_gpt.scripts.local_infer import FastDetectGPT
-
+from types import SimpleNamespace
 from utils.utils import load_samples
 import random
 
@@ -7,9 +7,11 @@ import random
 def main():
     scoring_model = "gpt-j-6B"
     sampling_model = "gpt-neo-2.7B"
-    detector = FastDetectGPT(
-        {"scoring_model_name": scoring_model, "sampling_model_name": sampling_model}
+    args = SimpleNamespace(
+        scoring_model_name=scoring_model,
+        sampling_model_name=sampling_model,
     )
+    detector = FastDetectGPT(args)
     samples = load_samples("data/samples.jsonl")
     samples = random.sample(samples, 10)
     for s in samples:
