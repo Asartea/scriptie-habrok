@@ -8,8 +8,7 @@ def main():
     scoring_model = "gpt-j-6B"
     sampling_model = "gpt-neo-2.7B"
     detector = FastDetectGPT(
-        scoring_model_name=scoring_model,
-        sampling_model_name=sampling_model,
+        {"scoring_model_name": scoring_model, "sampling_model_name": sampling_model}
     )
     samples = load_samples("data/samples.jsonl")
     samples = random.sample(samples, 10)
