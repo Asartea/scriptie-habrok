@@ -40,7 +40,7 @@ def calibrate_threshold(
     for sample in tqdm(human_validation_samples):
 
         try:
-            crit, _ = detector.compute_crit(sample)
+            crit, _ = detector.compute_crit(sample["code"])
             scores.append(float(crit))
 
         except Exception as e:
@@ -65,7 +65,7 @@ def classify_samples(
 
     for sample in tqdm(samples):
 
-        crit, _ = detector.compute_crit(sample)
+        crit, _ = detector.compute_crit(sample["code"])
 
         crit = float(crit)
 
