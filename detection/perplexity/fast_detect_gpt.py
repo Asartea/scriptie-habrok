@@ -24,7 +24,11 @@ SAMPLING_MODEL = "bigcode/starcoder2-15b"
 
 CACHE_DIR = environ.get("HF_CACHE_DIR", None)
 
+torch.backends.cuda.matmul.allow_tf32 = True
+torch.backends.cudnn.allow_tf32 = True
 
+
+@torch.inference_mode()
 def calibrate_threshold(
     detector: FastDetectGPT,
     human_validation_samples: Samples,
@@ -46,6 +50,8 @@ def calibrate_threshold(
 
         except Exception as e:
             print(f"[ERROR] {e}")
+        del crit
+        torch.cuda.empty_cache()
 
     threshold = np.percentile(scores, percentile)
 
@@ -56,6 +62,7 @@ def calibrate_threshold(
     return threshold, scores
 
 
+@torch.inference_mode()
 def classify_samples(
     detector: FastDetectGPT,
     samples: Samples,
@@ -72,6 +79,8 @@ def classify_samples(
             crit = float(crit)
 
             is_ai = crit > threshold
+            del crit
+            torch.cuda.empty_cache()
         except torch.OutOfMemoryError:
             print(f"OOM at sample {sample['code']}")
             print(f"Code length chars: {len(sample['code'])}")
