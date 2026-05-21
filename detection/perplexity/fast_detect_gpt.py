@@ -79,13 +79,9 @@ def classify_samples(
             crit = float(crit)
 
             is_ai = crit > threshold
-            del crit
-            torch.cuda.empty_cache()
         except torch.OutOfMemoryError:
             print(f"OOM at sample {sample['code']}")
             print(f"Code length chars: {len(sample['code'])}")
-
-            torch.cuda.empty_cache()
 
             ntokens = len(detector.scoring_tokenizer.encode(sample["code"]))
 
@@ -101,6 +97,8 @@ def classify_samples(
                 "actual_label": sample["label"],
             }
         )
+        del crit
+        torch.cuda.empty_cache()
     return results
 
 
