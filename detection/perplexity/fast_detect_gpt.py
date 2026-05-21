@@ -1,11 +1,11 @@
 import argparse
 import random
+from enum import Enum
 from os import environ
 from pathlib import Path
 
 import numpy as np
 import torch
-from fast_detect_gpt.scripts.local_infer import FastDetectGPT
 from sklearn.metrics import (
     accuracy_score,
     confusion_matrix,
@@ -16,11 +16,9 @@ from sklearn.metrics import (
 )
 from tqdm import tqdm
 
+from fast_detect_gpt.scripts.local_infer import FastDetectGPT
 from models.models import HumanSample, Samples
 from utils.utils import load_samples
-
-SCORING_MODEL = "bigcode/starcoder2-15b"
-SAMPLING_MODEL = "bigcode/starcoder2-15b"
 
 CACHE_DIR = environ.get("HF_CACHE_DIR", None)
 
@@ -28,77 +26,64 @@ torch.backends.cuda.matmul.allow_tf32 = True
 torch.backends.cudnn.allow_tf32 = True
 
 
+class ThresholdStrategy(str, Enum):
+    PERCENTILE = "percentile"
+    MEAN_STD = "mean_std"
+    MAD = "mad"
+    IQR = "iqr"
+
+
 @torch.inference_mode()
-def calibrate_threshold(
-    detector: FastDetectGPT,
-    human_validation_samples: Samples,
-    percentile: int = 95,
-):
-    """
-    Learn threshold from human-written code only.
+def compute_threshold(strategy: ThresholdStrategy, scores: list[float]) -> float:
+    np_scores = np.array(scores)
 
-    Anything above threshold is classified as AI.
-    """
+    if strategy == ThresholdStrategy.PERCENTILE:
+        return float(np.percentile(np_scores, 95))
 
-    scores: list[float] = []
+    if strategy == ThresholdStrategy.MEAN_STD:
+        mu = np.mean(np_scores)
+        sigma = np.std(np_scores)
+        return float(mu + 2.0 * sigma)
 
-    for sample in tqdm(human_validation_samples):
+    if strategy == ThresholdStrategy.MAD:
+        med = np.median(np_scores)
+        mad = np.median(np.abs(np_scores - med))
+        return float(med + 3.0 * 1.4826 * mad)
 
-        try:
-            crit, _ = detector.compute_crit(sample["code"])
-            scores.append(float(crit))
+    if strategy == ThresholdStrategy.IQR:
+        q1 = np.percentile(np_scores, 25)
+        q3 = np.percentile(np_scores, 75)
+        iqr = q3 - q1
+        return float(q3 + 1.5 * iqr)
 
-        except Exception as e:
-            print(f"[ERROR] {e}")
-        del crit
-        torch.cuda.empty_cache()
 
-    threshold = np.percentile(scores, percentile)
-
-    print()
-    print(f"Threshold percentile : {percentile}")
-    print(f"Threshold value      : {threshold:.4f}")
-
-    return threshold, scores
+def compute_scores_with_label(detector: FastDetectGPT, samples: Samples):
+    scores: list[tuple[str, float]] = []
+    for sample in tqdm(samples):
+        crit, _ = detector.compute_crit(sample["code"])
+        scores.append((sample["label"], float(crit)))
+    return scores
 
 
 @torch.inference_mode()
 def classify_samples(
-    detector: FastDetectGPT,
-    samples: Samples,
+    scores: list[tuple[str, float]],
     threshold: float,
 ):
 
     results: list[dict[str, str | float]] = []
 
-    for i, sample in enumerate(tqdm(samples)):
-        try:
-
-            crit, _ = detector.compute_crit(sample["code"])
-
-            crit = float(crit)
-
-            is_ai = crit > threshold
-        except torch.OutOfMemoryError:
-            print(f"OOM at sample {sample['code']}")
-            print(f"Code length chars: {len(sample['code'])}")
-
-            ntokens = len(detector.scoring_tokenizer.encode(sample["code"]))
-
-            print(f"Token count: {ntokens}")
-            torch.cuda.empty_cache()
-
-            continue
+    for score in tqdm(scores):
+        label, crit = score
+        is_ai = crit > threshold
 
         results.append(
             {
                 "score": crit,
                 "pred_label": is_ai,
-                "actual_label": sample["label"],
+                "actual_label": label,
             }
         )
-        del crit
-        torch.cuda.empty_cache()
     return results
 
 
@@ -132,10 +117,7 @@ def evaluate(results):
     rec = recall_score(y_true, y_pred)
     f1 = f1_score(y_true, y_pred)
 
-    try:
-        auc = roc_auc_score(y_true, y_score)
-    except Exception:
-        auc = None
+    auc = roc_auc_score(y_true, y_score)
 
     cm = confusion_matrix(y_true, y_pred)
 
@@ -149,34 +131,23 @@ def evaluate(results):
     }
 
 
-def write_results(
-    output_path: Path,
+def results_output(
     model_name: str,
     dataset_name: str,
     threshold: float,
     metrics: dict[str, float | str | None],
 ):
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-
-    with open(output_path, "w") as f:
-        f.write(f"Model: {model_name}\n")
-        f.write(f"Dataset: {dataset_name}\n")
-        f.write(f"Threshold: {threshold:.6f}\n\n")
-
-        f.write("=== METRICS ===\n")
-        f.write(f"Accuracy : {metrics['accuracy']:.4f}\n")
-        f.write(f"Precision: {metrics['precision']:.4f}\n")
-        f.write(f"Recall   : {metrics['recall']:.4f}\n")
-        f.write(f"F1       : {metrics['f1_score']:.4f}\n")
-
-        if metrics["auroc"] is not None:
-            f.write(f"AUROC    : {metrics['auroc']:.4f}\n")
-        else:
-            f.write("AUROC    : N/A\n")
-
-        f.write("\nConfusion Matrix:\n")
-        f.write(str(metrics["confusion_matrix"]))
-        f.write("\n")
+    return f"""Model: {model_name}
+Dataset: {dataset_name}
+Threshold: {threshold:.6f}
+=== METRICS ===
+Accuracy : {metrics['accuracy']:.4f}
+Precision: {metrics['precision']:.4f}
+Recall   : {metrics['recall']:.4f}
+F1       : {metrics['f1_score']:.4f}
+AUROC    : {metrics['auroc']:.4f}
+Confusion Matrix: {metrics['confusion_matrix']}
+"""
 
 
 def run(model_name: str):
@@ -202,7 +173,14 @@ def run(model_name: str):
         extra_distrib_params={},
     )
 
-    threshold, _ = calibrate_threshold(detector, calibration_samples, percentile=95)
+    calibration_scores = compute_scores_with_label(detector, calibration_samples)
+    thresholds: list[tuple[ThresholdStrategy, float]] = []
+    for strategy in ThresholdStrategy:
+        threshold = compute_threshold(
+            strategy, [score for _, score in calibration_scores]
+        )
+        print(f"Computed threshold using strategy {strategy}: {threshold:.6f}")
+        thresholds.append((strategy, threshold))
 
     samples = {
         "Normal": normal_machine_samples + human_test_samples,
@@ -210,23 +188,33 @@ def run(model_name: str):
     }
     for name, sample_set in samples.items():
         print(f"\n=== CLASSIFYING SAMPLE SET {name} ===")
-        results = classify_samples(detector, sample_set, threshold)
-        metrics = evaluate(results)
-        write_results(
-            output_path=Path(
-                f"results/perplexity_{model_name.replace('/', '_')}_{name}.txt"
-            ),
-            model_name=model_name,
-            dataset_name=name,
-            threshold=threshold,
-            metrics=metrics,
+        output_path = (
+            Path("results")
+            / f"perplexity_{model_name.replace('/', '_')}_{name.lower().replace(" ", "_")}.txt"
         )
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        scores = compute_scores_with_label(detector, sample_set)
+        for strategy, threshold in thresholds:
+            output_path.open("a").write(
+                f"Threshold strategy: {strategy}\nThreshold value: {threshold:.6f}\n\n"
+            )
+            results = classify_samples(scores, threshold)
+            metrics = evaluate(results)
+
+            output = results_output(
+                model_name,
+                name,
+                threshold,
+                metrics,
+            )
+            output_path.open("a").write(output + "\n\n")
+            print(output)
 
 
 def parse_args() -> argparse.Namespace:
 
     parser = argparse.ArgumentParser(description="Run FastDetectGPT on AoC samples")
-    parser.add_argument("--model", type=str, default=SCORING_MODEL)
+    parser.add_argument("--model", type=str)
     return parser.parse_args()
 
 
